@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fuel Station Manager</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div id="toast-wrap"></div>
+
+<div class="app">
+
+  <!-- LOGIN / REGISTRATION SCREEN -->
+  <div id="login" class="screen active">
+    <div class="login-box" id="login-box-login">
+      <div class="login-logo">
+        <div class="logo-icon">FSM</div>
+        <div>
+          <div class="login-title">Dealer Data Manager</div>
+          <div class="login-subtitle" id="pump-name-sub">Udhari &amp; Credit Management System</div>
+        </div>
+      </div>
+      <div class="login-heading">Sign in</div>
+      <div class="login-desc">Use your Email or Personal ID</div>
+      <form id="login-form">
+        <div class="field-wrap">
+          <label class="field-label">Email or Personal ID</label>
+          <input class="field-input" id="email" type="text" placeholder="you@example.com or OWN-0001" required>
+        </div>
+        <div class="field-wrap">
+          <label class="field-label">Password</label>
+          <input class="field-input" id="pass" type="password" placeholder="Enter password" required>
+        </div>
+        <button class="login-btn" type="submit" id="login-btn">Sign in to Dashboard</button>
+      </form>
+      <div class="login-err" id="login-err"></div>
+      <div class="auth-switch">
+        <span id="switch-to-register-manager-wrap">New Manager? <a href="#" id="switch-to-register-manager">Register with Pump Code</a></span>
+      </div>
+      <div class="login-footer">Fuel Station Manager &bull; Secure Access</div>
+    </div>
+
+    <!-- Register Owner (shown only when this pump has never been registered) -->
+    <div class="login-box" id="login-box-register-owner" style="display:none">
+      <div class="login-logo">
+        <div class="logo-icon">FSM</div>
+        <div>
+          <div class="login-title">Dealer Data Manager</div>
+          <div class="login-subtitle">First-time Pump Setup</div>
+        </div>
+      </div>
+      <div class="login-heading">Register your Pump</div>
+      <div class="login-desc">You're setting this pump up for the first time. This creates the one Owner account for this pump.</div>
+      <form id="register-owner-form">
+        <div class="field-wrap"><label class="field-label">Pump / Business Name</label>
+          <input class="field-input" id="ro-business-name" placeholder="e.g. Riverside Fuel Station" required></div>
+        <div class="field-wrap"><label class="field-label">Choose a 6-digit Pump Code</label>
+          <input class="field-input" id="ro-pump-code" inputmode="numeric" maxlength="6" placeholder="123456" required></div>
+        <div class="field-wrap"><label class="field-label">Confirm Pump Code</label>
+          <input class="field-input" id="ro-pump-code-confirm" inputmode="numeric" maxlength="6" placeholder="123456" required></div>
+        <div class="field-wrap"><label class="field-label">Owner Name</label>
+          <input class="field-input" id="ro-name" placeholder="Your full name" required></div>
+        <div class="field-wrap"><label class="field-label">Email</label>
+          <input class="field-input" id="ro-email" type="email" placeholder="you@example.com" required></div>
+        <div class="field-wrap"><label class="field-label">Password</label>
+          <input class="field-input" id="ro-password" type="password" placeholder="6+ characters" required></div>
+        <button class="login-btn" type="submit" id="register-owner-btn">Register Pump &amp; Owner</button>
+      </form>
+      <div class="login-err" id="register-owner-err"></div>
+      <div class="demo-hint">Share the pump code only with your Manager(s) — they'll need it once to register. Staff accounts are created by you from inside the app, not by self-registration.</div>
+    </div>
+
+    <!-- Register Manager (uses existing pump code) -->
+    <div class="login-box" id="login-box-register-manager" style="display:none">
+      <div class="login-logo">
+        <div class="logo-icon">FSM</div>
+        <div>
+          <div class="login-title">Dealer Data Manager</div>
+          <div class="login-subtitle" id="rm-pump-name">Manager Registration</div>
+        </div>
+      </div>
+      <div class="login-heading">Register as Manager</div>
+      <div class="login-desc">Ask the Owner for the 6-digit Pump Code to register.</div>
+      <form id="register-manager-form">
+        <div class="field-wrap"><label class="field-label">Pump Code</label>
+          <input class="field-input" id="rm-pump-code" inputmode="numeric" maxlength="6" placeholder="123456" required></div>
+        <div class="field-wrap"><label class="field-label">Name</label>
+          <input class="field-input" id="rm-name" placeholder="Your full name" required></div>
+        <div class="field-wrap"><label class="field-label">Email</label>
+          <input class="field-input" id="rm-email" type="email" placeholder="you@example.com" required></div>
+        <div class="field-wrap"><label class="field-label">Password</label>
+          <input class="field-input" id="rm-password" type="password" placeholder="6+ characters" required></div>
+        <button class="login-btn" type="submit" id="register-manager-btn">Register as Manager</button>
+      </form>
+      <div class="login-err" id="register-manager-err"></div>
+      <div class="auth-switch"><a href="#" id="switch-to-login-from-rm">&larr; Back to Sign in</a></div>
+    </div>
+  </div>
+
+  <!-- MAIN APP SCREEN -->
+  <div id="main" class="screen">
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-row">
+          <div class="brand-icon">FSM</div>
+          <div>
+            <div class="brand-name" id="brand-business-name">Dealer Data Manager</div>
+            <div><span class="brand-role" id="role-badge">OWNER</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="nav" id="nav">
+        <div class="nav-item active" data-page="dashboard"><i class="ti ti-layout-dashboard" aria-hidden="true"></i> <span>Dashboard</span></div>
+        <div class="nav-item" data-page="udhari"><i class="ti ti-file-invoice" aria-hidden="true"></i> <span>Udhari Records</span></div>
+        <div class="nav-item" data-page="customers"><i class="ti ti-users" aria-hidden="true"></i> <span>Dealers/Customers</span></div>
+        <div class="nav-item" data-page="payments"><i class="ti ti-credit-card" aria-hidden="true"></i> <span>Payments Received</span></div>
+        <div class="nav-item" data-page="reports" data-roles="admin,manager"><i class="ti ti-chart-bar" aria-hidden="true"></i> <span>Reports</span></div>
+        <div class="nav-item" data-page="add-entry"><i class="ti ti-plus" aria-hidden="true"></i> <span>Add Udhari Entry</span></div>
+        <div class="nav-item" data-page="upload" data-roles="admin,manager"><i class="ti ti-upload" aria-hidden="true"></i> <span>Upload Data</span></div>
+        <div class="nav-divider"></div>
+        <div class="nav-item" data-page="daily-ops"><i class="ti ti-gauge" aria-hidden="true"></i> <span>Daily Sales &amp; Testing</span></div>
+        <div class="nav-item" data-page="staff" data-roles="admin,manager"><i class="ti ti-id-badge-2" aria-hidden="true"></i> <span>Staff Management</span></div>
+        <div class="nav-item" data-page="attendance" data-roles="admin,manager"><i class="ti ti-calendar-check" aria-hidden="true"></i> <span>Attendance</span></div>
+        <div class="nav-divider"></div>
+        <div class="nav-item" data-page="users" data-roles="admin"><i class="ti ti-users-group" aria-hidden="true"></i> <span>Owner/Manager Accounts</span></div>
+        <div class="nav-item" data-page="audit" data-roles="admin"><i class="ti ti-shield-lock" aria-hidden="true"></i> <span>Audit Log</span></div>
+        <div class="nav-item" data-page="settings"><i class="ti ti-settings" aria-hidden="true"></i> <span>Settings</span></div>
+      </div>
+      <div class="sidebar-bottom">
+        <div class="logout-btn" id="logout-btn"><i class="ti ti-logout" aria-hidden="true"></i> <span>Logout</span></div>
+      </div>
+    </div>
+
+    <!-- CONTENT AREA -->
+    <div class="content">
+      <div class="topbar">
+        <div>
+          <div class="topbar-title" id="page-title">Dashboard</div>
+          <div class="topbar-sub" id="page-sub">Overview of dealer udhari data</div>
+        </div>
+        <div class="topbar-right">
+          <span><i class="ti ti-calendar" aria-hidden="true"></i> <span id="today-date"></span></span>
+          <div class="user-badge">
+            <div class="user-avatar" id="user-av">AD</div>
+            <span id="user-name">Admin</span>
+            <span class="personal-id-chip" id="user-pid"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= DASHBOARD ================= -->
+      <div id="page-dashboard" class="page active">
+        <div class="stats-grid" id="stats-grid">
+          <div class="stat-card"><div class="stat-icon" style="background:#e8f5ef"><i class="ti ti-wallet" style="color:#1a7a4a"></i></div><div class="stat-label">Total Udhari Amount</div><div class="stat-val" id="stat-total-udhari">0</div><div class="stat-sub">Total Outstanding</div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:#eff6ff"><i class="ti ti-users" style="color:#2563eb"></i></div><div class="stat-label">Total Customers</div><div class="stat-val" id="stat-customers">0</div><div class="stat-sub">Active Customers</div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:#fdf4ff"><i class="ti ti-arrows-exchange" style="color:#9333ea"></i></div><div class="stat-label">Total Transactions</div><div class="stat-val" id="stat-transactions">0</div><div class="stat-sub">This Month</div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:#f0fdf4"><i class="ti ti-download" style="color:#15803d"></i></div><div class="stat-label">Amount Received</div><div class="stat-val" id="stat-received">0</div><div class="stat-sub">This Month</div></div>
+          <div class="stat-card red-accent"><div class="stat-icon" style="background:#fef2f2"><i class="ti ti-cash" style="color:#d93025"></i></div><div class="stat-label">Pending Amount</div><div class="stat-val" id="stat-pending">0</div><div class="stat-sub">Total Outstanding</div></div>
+        </div>
+
+        <div class="dash-grid">
+          <div>
+            <div class="card" style="margin-bottom:14px">
+              <div class="card-title">Udhari Overview (Last 30 Days)</div>
+              <div id="dash-chart"></div>
+              <div style="display:flex;gap:14px;margin-top:6px">
+                <span style="font-size:11px;color:#1a7a4a"><span style="background:#1a7a4a;display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:4px;border-radius:2px"></span>Udhari Amount (<span class="cur-sym">$</span>)</span>
+                <span style="font-size:11px;color:#4ade80"><span style="background:#4ade80;display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:4px;border-radius:2px"></span>Amount Received (<span class="cur-sym">$</span>)</span>
+              </div>
+            </div>
+
+            <div class="card" style="margin-bottom:14px">
+              <div class="card-header">
+                <span class="card-title" style="margin-bottom:0">Recent Udhari Entries</span>
+                <span class="view-all" data-goto="udhari">View All</span>
+              </div>
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead><tr><th>Date</th><th>Customer</th><th>Fuel</th><th>Qty</th><th>Amount (<span class="cur-sym">₹</span>)</th><th>Paid (<span class="cur-sym">₹</span>)</th><th>Pending (<span class="cur-sym">₹</span>)</th><th>Status</th></tr></thead>
+                  <tbody id="dash-recent-entries"><tr><td colspan="8" class="loading-row">Loading…</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+              <div class="card">
+                <div class="card-title">Pending Amount by Fuel Type</div>
+                <div class="pie-row">
+                  <div class="pie-mock" id="dash-pie"></div>
+                  <div class="pie-legend" id="dash-pie-legend"></div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-title">Top 5 Customers (By Pending)</div>
+                <table class="top5-table">
+                  <tr><td style="color:var(--text3);font-size:11px">Customer</td><td style="color:var(--text3);font-size:11px;text-align:right">Pending</td></tr>
+                  <tbody id="dash-top5"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="alert-card" style="border-left:4px solid var(--red)">
+              <div style="font-size:12px;color:var(--text3);margin-bottom:4px"><i class="ti ti-clock"></i> Overdue Amount</div>
+              <div class="overdue-amount" id="dash-overdue">0</div>
+              <div style="font-size:11px;color:var(--text3)">More than 30 days</div>
+            </div>
+            <div class="alert-card">
+              <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px"><i class="ti ti-alert-triangle" style="color:var(--amber)"></i> Stock Levels</div>
+              <div id="dash-stock"></div>
+            </div>
+            <div class="alert-card" data-roles="admin,manager">
+              <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px"><i class="ti ti-users-group" style="color:var(--green)"></i> Staff Today</div>
+              <div id="dash-attendance-today" style="font-size:12px;color:var(--text2)"></div>
+            </div>
+            <div class="alert-card">
+              <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px">Quick Actions</div>
+              <button class="quick-action-btn" data-goto="add-entry"><i class="ti ti-plus"></i> Add Udhari Entry</button>
+              <button class="quick-action-btn" id="dash-record-payment-btn"><i class="ti ti-credit-card"></i> Record Payment</button>
+              <button class="quick-action-btn" data-goto="daily-ops"><i class="ti ti-gauge"></i> Daily Sales &amp; Testing</button>
+              <button class="quick-action-btn" data-goto="upload" data-roles="admin,manager"><i class="ti ti-upload"></i> Upload Data (Excel)</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= UDHARI RECORDS ================= -->
+      <div id="page-udhari" class="page">
+        <div class="card">
+          <div class="toolbar">
+            <input class="form-input search-input" id="udhari-search" placeholder="Search customer, vehicle, driver…">
+            <select class="form-input form-select" id="udhari-fuel"><option value="all">All Fuel Types</option><option value="diesel">Diesel</option><option value="petrol">Petrol</option><option value="cng">CNG</option></select>
+            <select class="form-input form-select" id="udhari-status"><option value="all">All Status</option><option value="pending">Pending</option><option value="partial">Partial</option><option value="paid">Paid</option></select>
+            <input class="form-input" type="date" id="udhari-from" title="From date">
+            <input class="form-input" type="date" id="udhari-to" title="To date">
+            <div class="toolbar-spacer"></div>
+            <button class="btn" id="udhari-export"><i class="ti ti-download"></i> Export CSV</button>
+            <button class="btn btn-primary" data-goto="add-entry"><i class="ti ti-plus"></i> Add Entry</button>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Date</th><th>Customer</th><th>Fuel</th><th>Qty</th><th>Rate</th><th>Amount (<span class="cur-sym">₹</span>)</th><th>Paid (<span class="cur-sym">₹</span>)</th><th>Pending (<span class="cur-sym">₹</span>)</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="udhari-tbody"><tr><td colspan="10" class="loading-row">Loading…</td></tr></tbody>
+            </table>
+          </div>
+          <div class="pagination">
+            <span id="udhari-count"></span>
+            <div class="pg-btns">
+              <button id="udhari-prev">‹ Prev</button>
+              <span id="udhari-page-label" style="padding:5px 4px"></span>
+              <button id="udhari-next">Next ›</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= CUSTOMERS ================= -->
+      <div id="page-customers" class="page">
+        <div class="card">
+          <div class="toolbar">
+            <input class="form-input search-input" id="customers-search" placeholder="Search name, phone, vehicle…">
+            <div class="toolbar-spacer"></div>
+            <button class="btn btn-primary" id="add-customer-btn"><i class="ti ti-plus"></i> Add Customer</button>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Name</th><th>Phone</th><th>Vehicle No</th><th>Total Udhari (<span class="cur-sym">₹</span>)</th><th>Pending (<span class="cur-sym">₹</span>)</th><th>Transactions</th><th>Actions</th></tr></thead>
+              <tbody id="customers-tbody"><tr><td colspan="7" class="loading-row">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= PAYMENTS ================= -->
+      <div id="page-payments" class="page">
+        <div class="card">
+          <div class="toolbar">
+            <input class="form-input search-input" id="payments-search" placeholder="Search customer…">
+            <div class="toolbar-spacer"></div>
+            <button class="btn btn-primary" id="add-payment-btn"><i class="ti ti-plus"></i> Record Payment</button>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Date</th><th>Customer</th><th>Amount (<span class="cur-sym">₹</span>)</th><th>Mode</th><th>Remarks</th><th>Actions</th></tr></thead>
+              <tbody id="payments-tbody"><tr><td colspan="6" class="loading-row">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= REPORTS ================= -->
+      <div id="page-reports" class="page">
+        <div class="card" style="margin-bottom:14px">
+          <div class="toolbar">
+            <input class="form-input" type="date" id="report-from" title="From date">
+            <input class="form-input" type="date" id="report-to" title="To date">
+            <select class="form-input form-select" id="report-fuel"><option value="all">All Fuel Types</option><option value="diesel">Diesel</option><option value="petrol">Petrol</option><option value="cng">CNG</option></select>
+            <select class="form-input form-select" id="report-customer"><option value="">All Customers</option></select>
+            <button class="btn btn-primary" id="report-apply"><i class="ti ti-filter"></i> Apply</button>
+            <div class="toolbar-spacer"></div>
+            <button class="btn" id="report-export-csv"><i class="ti ti-file-type-csv"></i> Export CSV</button>
+            <button class="btn" id="report-export-xlsx"><i class="ti ti-file-spreadsheet"></i> Export Excel</button>
+          </div>
+        </div>
+        <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)" id="report-stats">
+          <div class="stat-card"><div class="stat-label">Total Udhari</div><div class="stat-val" id="report-total-udhari">0</div></div>
+          <div class="stat-card"><div class="stat-label">Amount Received</div><div class="stat-val" id="report-total-received">0</div></div>
+          <div class="stat-card red-accent"><div class="stat-label">Pending Amount</div><div class="stat-val" id="report-total-pending">0</div></div>
+          <div class="stat-card"><div class="stat-label">Transactions</div><div class="stat-val" id="report-total-txns">0</div></div>
+        </div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-title">Udhari vs Received Trend</div>
+          <div id="report-chart"></div>
+        </div>
+        <div class="tabs">
+          <div class="tab-btn active" data-tab="by-fuel">By Fuel Type</div>
+          <div class="tab-btn" data-tab="by-customer">By Customer</div>
+        </div>
+        <div class="tab-panel active" id="tab-by-fuel">
+          <div class="card"><div class="table-wrap"><table class="data-table">
+            <thead><tr><th>Fuel Type</th><th>Transactions</th><th>Udhari (<span class="cur-sym">₹</span>)</th><th>Received (<span class="cur-sym">₹</span>)</th><th>Pending (<span class="cur-sym">₹</span>)</th></tr></thead>
+            <tbody id="report-by-fuel"></tbody>
+          </table></div></div>
+        </div>
+        <div class="tab-panel" id="tab-by-customer">
+          <div class="card"><div class="table-wrap"><table class="data-table">
+            <thead><tr><th>Customer</th><th>Transactions</th><th>Udhari (<span class="cur-sym">₹</span>)</th><th>Received (<span class="cur-sym">₹</span>)</th><th>Pending (<span class="cur-sym">₹</span>)</th></tr></thead>
+            <tbody id="report-by-customer"></tbody>
+          </table></div></div>
+        </div>
+
+        <div class="card" style="margin-top:14px">
+          <div class="card-title">Daily Operations Report</div>
+          <div class="toolbar">
+            <input class="form-input" type="date" id="daily-export-date">
+            <button class="btn btn-primary" id="daily-export-btn"><i class="ti ti-file-spreadsheet"></i> Download Daily Report</button>
+            <div class="toolbar-spacer"></div>
+            <button class="btn" id="full-export-btn" data-roles="admin"><i class="ti ti-database-export"></i> Full Data Export (Owner)</button>
+          </div>
+          <div style="font-size:11px;color:var(--text3)">The daily report contains Daily Sales, Daily Testing, Tank Dips, and Fuel Receipts as separate sheets. The full export never includes passwords or the pump code.</div>
+        </div>
+      </div>
+
+      <!-- ================= ADD UDHARI ENTRY ================= -->
+      <div id="page-add-entry" class="page">
+        <div class="section-two-col">
+          <div>
+            <div class="form-section">
+              <div class="form-section-title">Enter Udhari Details</div>
+              <form id="entry-form">
+                <div class="form-row">
+                  <div class="form-field">
+                    <label>Customer Name <span>*</span></label>
+                    <div style="display:flex;gap:6px">
+                      <select class="form-input form-select" style="flex:1" id="entry-customer" required>
+                        <option value="">Select Customer</option>
+                      </select>
+                      <button type="button" style="padding:0 10px;border-radius:7px;border:1px solid var(--green);background:#f0fdf4;color:var(--green);font-size:12px;cursor:pointer;white-space:nowrap" id="entry-new-customer-btn">+ New</button>
+                    </div>
+                    <input class="form-input" id="entry-new-customer-name" placeholder="New customer name" style="margin-top:6px;display:none">
+                  </div>
+                  <div class="form-field">
+                    <label>Date <span>*</span></label>
+                    <input class="form-input" type="date" id="entry-date" required>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-field">
+                    <label>Fuel Type <span>*</span></label>
+                    <select class="form-input form-select" id="entry-fuel" required>
+                      <option value="">Select Fuel Type</option>
+                      <option value="diesel">Diesel</option>
+                      <option value="petrol">Petrol</option>
+                      <option value="cng">CNG</option>
+                    </select>
+                  </div>
+                  <div class="form-field">
+                    <label>Quantity (Ltr./Kg) <span>*</span></label>
+                    <input class="form-input" type="number" step="0.01" min="0.01" placeholder="Enter Quantity" id="entry-qty" required>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-field">
+                    <label>Rate (<span class="cur-sym">₹</span> / Ltr.) <span>*</span></label>
+                    <input class="form-input" type="number" step="0.01" min="0.01" placeholder="Enter Rate" id="entry-rate" required>
+                  </div>
+                  <div class="form-field">
+                    <label>Amount (<span class="cur-sym">₹</span>)</label>
+                    <input class="form-input" type="text" id="entry-amount-out" value="0.00" readonly style="background:#f8f9fa;font-weight:600;color:var(--green)">
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-field">
+                    <label>Vehicle No.</label>
+                    <input class="form-input" type="text" placeholder="Enter Vehicle Number" id="entry-vehicle">
+                  </div>
+                  <div class="form-field">
+                    <label>Driver Name</label>
+                    <input class="form-input" type="text" placeholder="Enter Driver Name (Optional)" id="entry-driver">
+                  </div>
+                </div>
+                <div class="form-row one">
+                  <div class="form-field">
+                    <label>Remarks</label>
+                    <textarea class="form-input" rows="2" placeholder="Enter Remarks (Optional)" style="resize:vertical" id="entry-remarks"></textarea>
+                  </div>
+                </div>
+                <div style="margin-top:6px">
+                  <button class="save-btn" type="submit" id="entry-save-btn"><i class="ti ti-device-floppy"></i> Save Entry</button>
+                  <button class="reset-btn" type="button" id="entry-reset-btn"><i class="ti ti-refresh"></i> Reset</button>
+                </div>
+                <div id="entry-save-msg" style="margin-top:10px;font-size:12px;min-height:18px"></div>
+              </form>
+            </div>
+
+            <div class="form-section" style="margin-top:14px">
+              <div class="form-section-title">Quick Add Shortcuts</div>
+              <div class="fuel-shortcuts">
+                <button type="button" class="fuel-btn" data-fuel="diesel"><i class="ti ti-gas-station"></i>Diesel<br><small style="color:var(--text3);font-weight:400">Add Diesel Entry</small></button>
+                <button type="button" class="fuel-btn" data-fuel="petrol"><i class="ti ti-gas-station" style="color:#22a05a"></i>Petrol<br><small style="color:var(--text3);font-weight:400">Add Petrol Entry</small></button>
+                <button type="button" class="fuel-btn" data-fuel="cng"><i class="ti ti-gas-station" style="color:#f5a623"></i>CNG<br><small style="color:var(--text3);font-weight:400">Add CNG Entry</small></button>
+              </div>
+              <div class="upload-zone" id="entry-upload-zone">
+                <i class="ti ti-cloud-upload"></i>
+                <div style="font-size:13px;font-weight:500;color:var(--text2);margin-bottom:4px">Drag &amp; Drop Excel File Here</div>
+                <div style="font-size:12px;color:var(--text3);margin-bottom:10px">or</div>
+                <button type="button" class="save-btn" style="padding:7px 18px" id="entry-choose-file-btn"><i class="ti ti-file-spreadsheet"></i> Choose File</button>
+                <input type="file" id="entry-file-input" accept=".xlsx,.xls" style="display:none">
+                <div style="font-size:11px;color:var(--text3);margin-top:8px">Accepted format: .xlsx, .xls</div>
+                <div style="font-size:11px;color:var(--green);margin-top:4px;cursor:pointer" id="entry-sample-link"><i class="ti ti-download"></i> Download Sample File</div>
+                <div id="entry-upload-result" style="font-size:11px;margin-top:8px;text-align:left"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Entries Sidebar -->
+          <div class="form-section" style="align-self:start">
+            <div class="card-header">
+              <span class="form-section-title" style="padding-bottom:0;border-bottom:none;margin-bottom:0">Recent Entries</span>
+              <span class="view-all" data-goto="udhari">View All</span>
+            </div>
+            <div style="margin-top:12px" id="entry-recent-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= UPLOAD DATA ================= -->
+      <div id="page-upload" class="page">
+        <div class="form-section" style="max-width:560px">
+          <div class="form-section-title">Bulk Upload Udhari Data</div>
+          <div class="upload-zone" id="upload-zone">
+            <i class="ti ti-cloud-upload"></i>
+            <div style="font-size:13px;font-weight:500;color:var(--text2);margin-bottom:4px">Drag &amp; Drop Excel File Here</div>
+            <div style="font-size:12px;color:var(--text3);margin-bottom:10px">or</div>
+            <button type="button" class="save-btn" style="padding:7px 18px" id="upload-choose-file-btn"><i class="ti ti-file-spreadsheet"></i> Choose File</button>
+            <input type="file" id="upload-file-input" accept=".xlsx,.xls" style="display:none">
+            <div style="font-size:11px;color:var(--text3);margin-top:8px">Accepted format: .xlsx, .xls</div>
+            <div style="font-size:11px;color:var(--green);margin-top:4px;cursor:pointer" id="upload-sample-link"><i class="ti ti-download"></i> Download Sample File</div>
+          </div>
+          <div id="upload-result" style="margin-top:14px"></div>
+        </div>
+      </div>
+
+      <!-- ================= DAILY SALES & TESTING ================= -->
+      <div id="page-daily-ops" class="page">
+        <div class="toolbar" style="margin-bottom:0">
+          <input class="form-input" type="date" id="ops-date">
+          <select class="form-input form-select" id="ops-shift">
+            <option value="morning">Morning</option><option value="evening">Evening</option><option value="night">Night</option>
+          </select>
+          <select class="form-input form-select" id="ops-fuel"><option value="diesel">Diesel</option><option value="petrol">Petrol</option></select>
+        </div>
+        <div class="tabs" style="margin-top:12px">
+          <div class="tab-btn active" data-tab="ops-sales">Sales Entry</div>
+          <div class="tab-btn" data-tab="ops-receipts">Fuel Receipts</div>
+          <div class="tab-btn" data-tab="ops-testing">Testing / Density</div>
+          <div class="tab-btn" data-tab="ops-dip">Tank Dip (20 KL)</div>
+        </div>
+
+        <div class="tab-panel active" id="tab-ops-sales">
+          <div class="section-two-col">
+            <div class="form-section">
+              <div class="form-section-title">Daily Sales — Book Closing = Opening + Receipts − Sales − Testing</div>
+              <form id="sales-form">
+                <div class="form-row">
+                  <div class="form-field"><label>Opening Stock (L)</label><input class="form-input" type="number" step="0.01" id="sales-opening"></div>
+                  <div class="form-field"><label>Receipts (L)</label><input class="form-input" type="number" step="0.01" id="sales-receipt"></div>
+                </div>
+                <div class="form-row">
+                  <div class="form-field"><label>Sales (L)</label><input class="form-input" type="number" step="0.01" id="sales-litres"></div>
+                  <div class="form-field"><label>Rate (<span class="cur-sym">$</span>)</label><input class="form-input" type="number" step="0.01" id="sales-rate"></div>
+                </div>
+                <div class="form-row">
+                  <div class="form-field"><label>Testing (L)</label><input class="form-input" type="number" step="0.01" id="sales-testing"></div>
+                  <div class="form-field"><label>Physical Dip (L)</label><input class="form-input" type="number" step="0.01" id="sales-dip"></div>
+                </div>
+                <div class="form-row one"><div class="form-field"><label>Remarks</label><input class="form-input" id="sales-remarks"></div></div>
+                <div class="calc-box">
+                  <div>Sales Amount: <b id="sales-calc-amount">0</b></div>
+                  <div>Book Closing: <b id="sales-calc-closing">0 L</b></div>
+                  <div>Variance: <b id="sales-calc-variance">—</b></div>
+                </div>
+                <button class="save-btn" type="submit"><i class="ti ti-device-floppy"></i> Save Daily Sales</button>
+                <button class="reset-btn" type="button" id="sales-prefill-btn"><i class="ti ti-wand"></i> Prefill Suggestions</button>
+              </form>
+            </div>
+            <div class="form-section" style="align-self:start">
+              <div class="form-section-title">Today's Entries (this date)</div>
+              <div class="table-wrap"><table class="data-table">
+                <thead><tr><th>Shift</th><th>Fuel</th><th>Closing (L)</th><th>Variance</th></tr></thead>
+                <tbody id="sales-today-tbody"></tbody>
+              </table></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-panel" id="tab-ops-receipts">
+          <div class="section-two-col">
+            <div class="form-section">
+              <div class="form-section-title">Log Fuel Receipt (Stock Inward)</div>
+              <form id="receipt-form">
+                <div class="form-row"><div class="form-field"><label>Quantity (L) <span>*</span></label><input class="form-input" type="number" step="0.01" id="receipt-qty" required></div>
+                  <div class="form-field"><label>Invoice No.</label><input class="form-input" id="receipt-invoice"></div></div>
+                <div class="form-row one"><div class="form-field"><label>Supplier</label><input class="form-input" id="receipt-supplier"></div></div>
+                <div class="form-row one"><div class="form-field"><label>Remarks</label><input class="form-input" id="receipt-remarks"></div></div>
+                <button class="save-btn" type="submit"><i class="ti ti-device-floppy"></i> Save Receipt</button>
+              </form>
+            </div>
+            <div class="form-section" style="align-self:start">
+              <div class="form-section-title">Recent Receipts</div>
+              <div class="table-wrap"><table class="data-table">
+                <thead><tr><th>Date</th><th>Fuel</th><th>Qty (L)</th><th>Invoice</th><th></th></tr></thead>
+                <tbody id="receipts-tbody"></tbody>
+              </table></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-panel" id="tab-ops-testing">
+          <div class="section-two-col">
+            <div class="form-section">
+              <div class="form-section-title">Daily Fuel Testing (Density Check)</div>
+              <form id="density-form">
+                <div class="form-row"><div class="form-field"><label>Testing Qty (L)</label><input class="form-input" type="number" step="0.01" id="density-qty" value="5"></div>
+                  <div class="form-field"><label>Density <span>*</span></label><input class="form-input" type="number" step="0.001" id="density-value" required></div></div>
+                <div class="form-row"><div class="form-field"><label>Temperature (°C)</label><input class="form-input" type="number" step="0.1" id="density-temp"></div>
+                  <div class="form-field"><label>Water Check</label><select class="form-input form-select" id="density-water"><option value="pass">Pass</option><option value="fail">Fail</option></select></div></div>
+                <div class="form-row"><div class="form-field"><label>Appearance</label><input class="form-input" id="density-appearance" placeholder="Clear / Cloudy"></div>
+                  <div class="form-field"><label>Result</label><select class="form-input form-select" id="density-result"><option value="pass">Pass</option><option value="fail">Fail</option><option value="hold">Hold</option></select></div></div>
+                <div class="form-row"><div class="form-field"><label>Sample No.</label><input class="form-input" id="density-sample"></div>
+                  <div class="form-field"><label>Tested By</label><input class="form-input" id="density-tester"></div></div>
+                <div class="form-row one"><div class="form-field"><label>Remarks</label><input class="form-input" id="density-remarks"></div></div>
+                <button class="save-btn" type="submit"><i class="ti ti-device-floppy"></i> Save Test Result</button>
+              </form>
+            </div>
+            <div class="form-section" style="align-self:start">
+              <div class="form-section-title">Recent Tests</div>
+              <div class="table-wrap"><table class="data-table">
+                <thead><tr><th>Date</th><th>Fuel</th><th>Density</th><th>Result</th><th></th></tr></thead>
+                <tbody id="density-tbody"></tbody>
+              </table></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-panel" id="tab-ops-dip">
+          <div class="section-two-col">
+            <div class="form-section">
+              <div class="form-section-title">20 KL Tank Dip Reading</div>
+              <form id="dip-form">
+                <div class="form-row one"><div class="form-field"><label>Dip (mm) <span>*</span></label><input class="form-input" type="number" step="1" id="dip-mm" required></div></div>
+                <div class="calc-box"><div>Observed Volume: <b id="dip-calc-volume">0 L</b> <span style="color:var(--text3)">(max 20,000 L)</span></div></div>
+                <div class="form-row"><div class="form-field"><label>Density</label><input class="form-input" type="number" step="0.001" id="dip-density"></div>
+                  <div class="form-field"><label>Temperature (°C)</label><input class="form-input" type="number" step="0.1" id="dip-temp"></div></div>
+                <div class="form-row one"><div class="form-field"><label>Remarks</label><input class="form-input" id="dip-remarks"></div></div>
+                <button class="save-btn" type="submit"><i class="ti ti-device-floppy"></i> Save Dip Reading</button>
+              </form>
+            </div>
+            <div class="form-section" style="align-self:start">
+              <div class="form-section-title">Recent Dip Readings</div>
+              <div class="table-wrap"><table class="data-table">
+                <thead><tr><th>Date</th><th>Fuel</th><th>Dip (mm)</th><th>Observed (L)</th><th>Variance</th><th></th></tr></thead>
+                <tbody id="dip-tbody"></tbody>
+              </table></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= STAFF MANAGEMENT ================= -->
+      <div id="page-staff" class="page">
+        <div class="card">
+          <div class="toolbar">
+            <div class="toolbar-spacer"></div>
+            <button class="btn btn-primary" id="add-staff-btn"><i class="ti ti-plus"></i> Add Staff</button>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Personal ID</th><th>Name</th><th>Employee Code</th><th>Phone</th><th>Designation</th><th>Shift</th><th>Joining Date</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="staff-tbody"><tr><td colspan="9" class="loading-row">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= ATTENDANCE ================= -->
+      <div id="page-attendance" class="page">
+        <div class="tabs">
+          <div class="tab-btn active" data-tab="att-day">Mark Attendance</div>
+          <div class="tab-btn" data-tab="att-summary">Monthly Summary</div>
+        </div>
+        <div class="tab-panel active" id="tab-att-day">
+          <div class="card">
+            <div class="toolbar"><input class="form-input" type="date" id="att-date"></div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead><tr><th>Staff</th><th>Status</th><th>Check In</th><th>Check Out</th><th>Shift</th><th>Remarks</th><th></th></tr></thead>
+                <tbody id="attendance-tbody"><tr><td colspan="7" class="loading-row">Loading…</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="tab-panel" id="tab-att-summary">
+          <div class="card">
+            <div class="toolbar"><input class="form-input" type="month" id="att-month"></div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead><tr><th>Staff</th><th>Present</th><th>Absent</th><th>Half Day</th><th>Leave</th><th>Off</th></tr></thead>
+                <tbody id="attendance-summary-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= USERS & ROLES ================= -->
+      <div id="page-users" class="page">
+        <div class="card">
+          <div class="toolbar">
+            <div class="toolbar-spacer"></div>
+            <button class="btn btn-primary" id="add-user-btn"><i class="ti ti-plus"></i> Add Account</button>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Personal ID</th><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="users-tbody"><tr><td colspan="6" class="loading-row">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= AUDIT LOG ================= -->
+      <div id="page-audit" class="page">
+        <div class="card">
+          <div class="toolbar">
+            <select class="form-input form-select" id="audit-action-filter">
+              <option value="all">All Actions</option>
+              <option value="login">Login</option>
+              <option value="logout">Logout</option>
+              <option value="register_owner">Register Owner</option>
+              <option value="register_manager">Register Manager</option>
+              <option value="pump_code_set">Pump Code Set</option>
+              <option value="pump_code_reset">Pump Code Reset</option>
+              <option value="create">Create</option>
+              <option value="update">Update</option>
+              <option value="delete">Delete</option>
+              <option value="export">Export</option>
+            </select>
+            <div class="toolbar-spacer"></div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Entity</th><th>Details</th><th>IP</th><th>Result</th></tr></thead>
+              <tbody id="audit-tbody"><tr><td colspan="7" class="loading-row">Loading…</td></tr></tbody>
+            </table>
+          </div>
+          <div class="pagination">
+            <span id="audit-count"></span>
+            <div class="pg-btns"><button id="audit-prev">‹ Prev</button><span id="audit-page-label" style="padding:5px 4px"></span><button id="audit-next">Next ›</button></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= SETTINGS ================= -->
+      <div id="page-settings" class="page">
+        <div class="settings-grid">
+          <div class="form-section">
+            <div class="form-section-title">Business Info</div>
+            <form id="settings-business-form">
+              <div class="form-row one"><div class="form-field"><label>Business Name</label><input class="form-input" id="set-business-name"></div></div>
+              <div class="form-row one"><div class="form-field"><label>Address</label><input class="form-input" id="set-business-address"></div></div>
+              <div class="form-row one"><div class="form-field"><label>Tax / VAT Number (optional)</label><input class="form-input" id="set-gst"></div></div>
+              <div class="form-row">
+                <div class="form-field"><label>Currency Symbol</label><input class="form-input" id="set-currency-symbol" maxlength="5" placeholder="e.g. $, €, £, ₹"></div>
+                <div class="form-field"><label>Currency Code</label><input class="form-input" id="set-currency-code" maxlength="8" placeholder="e.g. USD, EUR, GBP"></div>
+              </div>
+              <div class="form-row one"><div class="form-field"><label>Number / Date Format (locale)</label>
+                <select class="form-input" id="set-locale">
+                  <option value="en-US">English (US) — 1,234.56 · Jan 5, 2026</option>
+                  <option value="en-GB">English (UK) — 1,234.56 · 5 Jan 2026</option>
+                  <option value="en-IN">English (India) — 1,23,456.78 · 5 Jan 2026</option>
+                  <option value="de-DE">Deutsch (DE) — 1.234,56 · 5. Jan. 2026</option>
+                  <option value="fr-FR">Français (FR) — 1 234,56 · 5 janv. 2026</option>
+                  <option value="es-ES">Español (ES) — 1234,56 · 5 ene 2026</option>
+                  <option value="pt-BR">Português (BR) — 1.234,56 · 5 de jan. de 2026</option>
+                  <option value="ar-AE">العربية (AE)</option>
+                </select>
+              </div></div>
+              <div class="form-row"><div class="form-field"><label>Diesel Rate (<span class="cur-sym">$</span>/Ltr.)</label><input class="form-input" type="number" step="0.01" id="set-rate-diesel"></div>
+                <div class="form-field"><label>Petrol Rate (<span class="cur-sym">$</span>/Ltr.)</label><input class="form-input" type="number" step="0.01" id="set-rate-petrol"></div></div>
+              <div class="form-row"><div class="form-field"><label>CNG Rate (<span class="cur-sym">$</span>/Kg)</label><input class="form-input" type="number" step="0.01" id="set-rate-cng"></div></div>
+              <button class="save-btn" type="submit"><i class="ti ti-device-floppy"></i> Save Settings</button>
+              <div id="settings-msg" style="margin-top:10px;font-size:12px;min-height:18px"></div>
+            </form>
+          </div>
+
+          <div>
+            <div class="form-section" style="margin-bottom:14px" data-roles="admin">
+              <div class="form-section-title"><i class="ti ti-shield-lock"></i> Pump Security</div>
+              <div id="pump-security-status" style="font-size:12px;color:var(--text2);margin-bottom:10px"></div>
+              <form id="pump-code-form">
+                <div class="form-row one" id="pump-code-current-wrap" style="display:none">
+                  <div class="form-field"><label>Current Password (to reset code)</label><input class="form-input" type="password" id="pump-current-password"></div>
+                </div>
+                <div class="form-row"><div class="form-field"><label>New 6-digit Pump Code</label><input class="form-input" inputmode="numeric" maxlength="6" id="pump-new-code"></div>
+                  <div class="form-field"><label>Confirm Code</label><input class="form-input" inputmode="numeric" maxlength="6" id="pump-confirm-code"></div></div>
+                <button class="save-btn" type="submit" id="pump-code-save-btn"><i class="ti ti-key"></i> Set / Reset Pump Code</button>
+                <div id="pump-code-msg" style="margin-top:10px;font-size:12px;min-height:18px"></div>
+              </form>
+            </div>
+            <div class="form-section" style="margin-bottom:14px">
+              <div class="form-section-title">Stock Levels</div>
+              <form id="settings-stock-form" id="stock-rows-wrap"></form>
+              <button class="save-btn" type="button" id="settings-stock-save"><i class="ti ti-device-floppy"></i> Save Stock</button>
+            </div>
+            <div class="form-section">
+              <div class="form-section-title">Change Password</div>
+              <form id="settings-password-form">
+                <div class="form-row one"><div class="form-field"><label>Current Password</label><input class="form-input" type="password" id="set-current-pw" required></div></div>
+                <div class="form-row one"><div class="form-field"><label>New Password</label><input class="form-input" type="password" id="set-new-pw" minlength="6" required></div></div>
+                <button class="save-btn" type="submit"><i class="ti ti-lock"></i> Update Password</button>
+                <div id="password-msg" style="margin-top:10px;font-size:12px;min-height:18px"></div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODALS ============ -->
+
+<div class="modal-overlay" id="modal-customer">
+  <div class="modal-box">
+    <div class="modal-header"><span class="modal-title" id="customer-modal-title">Add Customer</span><button class="modal-close" data-close>&times;</button></div>
+    <div class="modal-body">
+      <div class="modal-err" id="customer-modal-err"></div>
+      <form id="customer-form">
+        <input type="hidden" id="cust-id">
+        <div class="form-row one"><div class="form-field"><label>Name <span>*</span></label><input class="form-input" id="cust-name" required></div></div>
+        <div class="form-row"><div class="form-field"><label>Phone</label><input class="form-input" id="cust-phone"></div>
+          <div class="form-field"><label>Vehicle No.</label><input class="form-input" id="cust-vehicle"></div></div>
+        <div class="form-row one"><div class="form-field"><label>Address</label><input class="form-input" id="cust-address"></div></div>
+        <div class="form-row one"><div class="form-field"><label>Tax / VAT Number (optional)</label><input class="form-input" id="cust-gst"></div></div>
+      </form>
+    </div>
+    <div class="modal-footer"><button class="btn" data-close>Cancel</button><button class="btn btn-primary" id="customer-save-btn"><i class="ti ti-device-floppy"></i> Save</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-ledger">
+  <div class="modal-box wide">
+    <div class="modal-header"><span class="modal-title" id="ledger-title">Customer Ledger</span><button class="modal-close" data-close>&times;</button></div>
+    <div class="modal-body">
+      <div id="ledger-summary" style="margin-bottom:12px;font-size:13px;color:var(--text2)"></div>
+      <div class="tabs">
+        <div class="tab-btn active" data-tab="ledger-entries">Udhari Entries</div>
+        <div class="tab-btn" data-tab="ledger-payments">Payments</div>
+      </div>
+      <div class="tab-panel active" id="tab-ledger-entries">
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>Date</th><th>Fuel</th><th>Qty</th><th>Amount</th><th>Paid</th><th>Pending</th><th>Status</th></tr></thead><tbody id="ledger-entries-tbody"></tbody></table></div>
+      </div>
+      <div class="tab-panel" id="tab-ledger-payments">
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>Date</th><th>Amount</th><th>Mode</th><th>Remarks</th></tr></thead><tbody id="ledger-payments-tbody"></tbody></table></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn" data-close>Close</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-edit-entry">
+  <div class="modal-box">
+    <div class="modal-header"><span class="modal-title">Edit Udhari Entry</span><button class="modal-close" data-close>&times;</button></div>
+    <div class="modal-body">
+      <div class="modal-err" id="edit-entry-err"></div>
+      <form id="edit-entry-form">
+        <input type="hidden" id="edit-entry-id">
+        <div class="form-row"><div class="form-field"><label>Date</label><input class="form-input" type="date" id="edit-entry-date"></div>
+          <div class="form-field"><label>Fuel Type</label><select class="form-input form-select" id="edit-entry-fuel"><option value="diesel">Diesel</option><option value="petrol">Petrol</option><option value="cng">CNG</option></select></div></div>
+        <div class="form-row"><div class="form-field"><label>Quantity</label><input class="form-input" type="number" step="0.01" id="edit-entry-qty"></div>
+          <div class="form-field"><label>Rate</label><input class="form-input" type="number" step="0.01" id="edit-entry-rate"></div></div>
+        <div class="form-row"><div class="form-field"><label>Vehicle No.</label><input class="form-input" id="edit-entry-vehicle"></div>
+          <div class="form-field"><label>Driver Name</label><input class="form-input" id="edit-entry-driver"></div></div>
+        <div class="form-row one"><div class="form-field"><label>Remarks</label><textarea class="form-input" id="edit-entry-remarks" rows="2"></textarea></div></div>
+      </form>
+    </div>
+    <div class="modal-footer"><button class="btn" data-close>Cancel</button><button class="btn btn-primary" id="edit-entry-save-btn"><i class="ti ti-device-floppy"></i> Save Changes</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-payment">
+  <div class="modal-box">
+    <div class="modal-header"><span class="modal-title">Record Payment</span><button class="modal-close" data-close>&times;</button></div>
+    <div class="modal-body">
+      <div class="modal-err" id="payment-modal-err"></div>
+      <form id="payment-form">
+        <div class="form-row one"><div class="form-field"><label>Customer <span>*</span></label>
+          <select class="form-input form-select" id="pay-customer" required><option value="">Select Customer</option></select></div></div>
+        <div class="form-row one"><div class="form-field"><label>Apply to specific entry (optional)</label>
+          <select class="form-input form-select" id="pay-entry"><option value="">Auto-apply to oldest pending entries</option></select></div></div>
+        <div class="form-row"><div class="form-field"><label>Amount (<span class="cur-sym">$</span>) <span>*</span></label><input class="form-input" type="number" step="0.01" min="0.01" id="pay-amount" required></div>
+          <div class="form-field"><label>Date <span>*</span></label><input class="form-input" type="date" id="pay-date" required></div></div>
+        <div class="form-row"><div class="form-field"><label>Mode</label>
+          <select class="form-input form-select" id="pay-mode"><option value="cash">Cash</option><option value="upi">UPI</option><option value="bank">Bank Transfer</option><option value="cheque">Cheque</option></select></div>
+          <div class="form-field"><label>Remarks</label><input class="form-input" id="pay-remarks"></div></div>
+      </form>
+    </div>
+    <div class="modal-footer"><button class="btn" data-close>Cancel</button><button class="btn btn-primary" id="payment-save-btn"><i class="ti ti-device-floppy"></i> Save Payment</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-user">
+  <div class="modal-box">
+    <div class="modal-header"><span class="modal-title" id="user-modal-title">Add Account</span><button class="modal-close" data-close>&times;</button></div>
+    <div class="modal-body">
+      <div class="modal-err" id="user-modal-err"></div>
+      <form id="user-form">
+        <input type="hidden" id="user-id">
+        <div class="form-row one"><div class="form-field"><label>Name <span>*</span></label><input class="form-input" id="user-name-field" required></div></div>
+        <div class="form-row one"><div class="form-field"><label>Email <span>*</span></label><input class="form-input" type="email" id="user-email" required></div></div>
+        <div class="form-row"><div class="form-field"><label>Role</label>
+          <select class="form-input form-select" id="user-role"><option value="staff">Staff</option><option value="manager">Manager</option><option value="admin">Owner</option></select></div>
+          <div class="form-field"><label>Status</label><select class="form-input form-select" id="user-active"><option value="1">Active</option><option value="0">Inactive</option></select></div></div>
+        <div class="form-row one"><div class="form-field"><label id="user-password-label">Password <span>*</span></label><input class="form-input" type="password" id="user-password" placeholder="Leave blank to keep unchanged (when editing)"></div></div>
+      </form>
+    </div>
+    <div class="modal-footer"><button class="btn" data-close>Cancel</button><button class="btn btn-primary" id="user-save-btn"><i class="ti ti-device-floppy"></i> Save</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-staff">
+  <div class="modal-box wide">
+    <div class="modal-header"><span class="modal-title" id="staff-modal-title">Add Staff</span><button class="modal-close" data-close>&times;</button></div>
+    <div class="modal-body">
+      <div class="modal-err" id="staff-modal-err"></div>
+      <div class="modal-note" id="staff-temp-password-note" style="display:none"></div>
+      <form id="staff-form">
+        <input type="hidden" id="staff-id">
+        <div class="form-row"><div class="form-field"><label>Name <span>*</span></label><input class="form-input" id="staff-name" required></div>
+          <div class="form-field"><label>Employee Code</label><input class="form-input" id="staff-employee-code"></div></div>
+        <div class="form-row"><div class="form-field"><label>Phone</label><input class="form-input" id="staff-phone"></div>
+          <div class="form-field"><label>Email (optional)</label><input class="form-input" type="email" id="staff-email"></div></div>
+        <div class="form-row"><div class="form-field"><label>Designation</label><input class="form-input" id="staff-designation" placeholder="e.g. Fuel Attendant"></div>
+          <div class="form-field"><label>Shift</label><select class="form-input form-select" id="staff-shift"><option value="">—</option><option value="morning">Morning</option><option value="evening">Evening</option><option value="night">Night</option></select></div></div>
+        <div class="form-row"><div class="form-field"><label>Joining Date</label><input class="form-input" type="date" id="staff-joining-date"></div>
+          <div class="form-field"><label>Emergency Contact</label><input class="form-input" id="staff-emergency"></div></div>
+        <div class="form-row one"><div class="form-field"><label>Address</label><input class="form-input" id="staff-address"></div></div>
+        <div class="form-row one"><div class="form-field"><label>Notes</label><textarea class="form-input" rows="2" id="staff-notes"></textarea></div></div>
+        <div class="form-row">
+          <div class="form-field"><label>Status</label><select class="form-input form-select" id="staff-active"><option value="1">Active</option><option value="0">Inactive</option></select></div>
+          <div class="form-field"><label id="staff-password-label">Password (leave blank to auto-generate)</label><input class="form-input" type="password" id="staff-password"></div>
+        </div>
+        <div class="form-row one" id="staff-reset-password-wrap" style="display:none">
+          <label style="font-size:12px;display:flex;align-items:center;gap:6px"><input type="checkbox" id="staff-reset-password"> Reset password (generates a new temporary one)</label>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer"><button class="btn" data-close>Cancel</button><button class="btn btn-primary" id="staff-save-btn"><i class="ti ti-device-floppy"></i> Save</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-confirm">
+  <div class="modal-box" style="max-width:400px">
+    <div class="modal-header"><span class="modal-title" id="confirm-title">Are you sure?</span><button class="modal-close" data-close>&times;</button></div>
+    <div class="modal-body"><p id="confirm-msg" style="font-size:13px;color:var(--text2)"></p></div>
+    <div class="modal-footer"><button class="btn" data-close>Cancel</button><button class="btn btn-danger" id="confirm-yes-btn">Yes, proceed</button></div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

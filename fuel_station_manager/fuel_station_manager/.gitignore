@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Local environment / secrets
+.env
+
+# SQLite data (never commit real dealer data)
+instance/*.db
+*.db
+!instance/.gitkeep
+
+# OS / editor cruft
+.DS_Store
+.vscode/
+.idea/
