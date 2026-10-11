@@ -269,3 +269,4 @@ payment. Currency/locale settings are inserted with sane defaults
 database is safe and non-destructive.
 "# Abhishekverma3205-Helpingmanager_iocl" 
 "# Abhishekverma3205-Helpingmanager_iocl" 
+"# Helpingmanager_iocl" 
