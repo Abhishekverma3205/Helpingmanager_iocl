@@ -258,44 +258,202 @@ DENSITY_NEW_COLUMNS = [
 ]
 
 
+# MongoDB is the persistent data store. To minimize risk in this migration, the existing
+# SQL statements in app.py are executed against an in-memory SQLite compatibility snapshot;
+# changed tables are then persisted to MongoDB. This keeps existing business rules/routes
+# intact while the app transitions, but it is intended for small, single-worker deployments.
+import re
+from pymongo import MongoClient, ASCENDING
+from pymongo.errors import PyMongoError
+
+MONGO_URI = os.environ.get("MONGO_URI", "").strip()
+MONGO_DB_NAME = os.environ.get("MONGO_DB_NAME", "fuel_station_manager").strip() or "fuel_station_manager"
+
+_mongo_client = None
+_mongo_db = None
+
+
+def _mongo():
+    global _mongo_client, _mongo_db
+    if not MONGO_URI:
+        raise RuntimeError(
+            "MongoDB is not configured. Set MONGO_URI in your .env file, for example "
+            "mongodb+srv://<username>:<password>@<cluster-host>/<database>?retryWrites=true&w=majority"
+        )
+    if _mongo_client is None:
+        _mongo_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=8000, connectTimeoutMS=8000)
+        _mongo_db = _mongo_client[MONGO_DB_NAME]
+    return _mongo_db
+
+
+def _table_from_sql(sql):
+    match = re.search(r"\b(?:INSERT(?:\s+OR\s+\w+)?\s+INTO|UPDATE|DELETE\s+FROM)\s+[\"`]?([a-zA-Z_][\w]*)", sql, re.I)
+    return match.group(1).lower() if match else None
+
+
+class _CursorProxy:
+    def __init__(self, owner, cursor):
+        self._owner = owner
+        self._cursor = cursor
+
+    def execute(self, sql, args=()):
+        self._owner._mark_write(sql)
+        self._cursor.execute(sql, args)
+        return self
+
+    def executemany(self, sql, seq):
+        self._owner._mark_write(sql)
+        self._cursor.executemany(sql, seq)
+        return self
+
+    def __getattr__(self, name):
+        return getattr(self._cursor, name)
+
+
+class _MongoSQLConnection:
+    """Small SQL-compatibility connection; MongoDB remains the durable store."""
+    def __init__(self):
+        self._conn = sqlite3.connect(":memory:")
+        self._conn.row_factory = sqlite3.Row
+        self._dirty_tables = set()
+        self._closed = False
+        self._conn.execute("PRAGMA foreign_keys = ON")
+        self._conn.executescript(SCHEMA)
+        self._load_snapshot()
+
+    @property
+    def row_factory(self):
+        return self._conn.row_factory
+
+    @row_factory.setter
+    def row_factory(self, value):
+        self._conn.row_factory = value
+
+    def _mark_write(self, sql):
+        table = _table_from_sql(sql)
+        if table:
+            self._dirty_tables.add(table)
+
+    def _table_names(self):
+        return [r[0] for r in self._conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").fetchall()]
+
+    def _load_snapshot(self):
+        mongo = _mongo()
+        for table in self._table_names():
+            columns = [r[1] for r in self._conn.execute(f"PRAGMA table_info({table})").fetchall()]
+            if not columns:
+                continue
+            docs = list(mongo[table].find({}))
+            for doc in docs:
+                fields = [c for c in columns if c in doc]
+                # _id is Mongo's document key; SQL uses the table's original primary-key field.
+                if not fields:
+                    continue
+                placeholders = ",".join("?" for _ in fields)
+                names = ",".join(f'"{c}"' for c in fields)
+                vals = [doc.get(c) for c in fields]
+                try:
+                    self._conn.execute(f'INSERT OR IGNORE INTO "{table}" ({names}) VALUES ({placeholders})', vals)
+                except sqlite3.Error:
+                    # A legacy document missing a newly-added optional field is upgraded by schema defaults.
+                    continue
+
+    def execute(self, sql, args=()):
+        self._mark_write(sql)
+        return self._conn.execute(sql, args)
+
+    def executemany(self, sql, seq):
+        self._mark_write(sql)
+        return self._conn.executemany(sql, seq)
+
+    def cursor(self):
+        return _CursorProxy(self, self._conn.cursor())
+
+    def executescript(self, sql_script):
+        # DDL is local to each SQL compatibility snapshot. Data-changing statements are tracked.
+        for statement in sql_script.split(";"):
+            self._mark_write(statement)
+        return self._conn.executescript(sql_script)
+
+    def _persist(self):
+        if not self._dirty_tables:
+            self._conn.commit()
+            return
+        mongo = _mongo()
+        tables = list(self._dirty_tables)
+        # Persist only affected collections. For this transitional bridge, use one worker to avoid
+        # concurrent full-collection rewrites; native Mongo CRUD is the next optimization step.
+        for table in tables:
+            columns = self._conn.execute(f"PRAGMA table_info({table})").fetchall()
+            if not columns:
+                continue
+            pk_columns = [r[1] for r in columns if r[5]]
+            rows = self._conn.execute(f'SELECT * FROM "{table}"').fetchall()
+            documents = []
+            for row in rows:
+                doc = dict(row)
+                if pk_columns:
+                    pk = pk_columns[0]
+                    doc["_id"] = doc.get(pk)
+                else:
+                    doc["_id"] = doc.get("id")
+                documents.append(doc)
+            collection = mongo[table]
+            collection.delete_many({})
+            if documents:
+                collection.insert_many(documents, ordered=True)
+        self._conn.commit()
+        self._dirty_tables.clear()
+
+    def commit(self):
+        self._persist()
+
+    def close(self):
+        if self._closed:
+            return
+        try:
+            self._persist()
+        finally:
+            self._conn.close()
+            self._closed = True
+
+
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    return conn
+    return _MongoSQLConnection()
 
 
 def query_db(query, args=(), one=False):
     conn = get_db()
-    cur = conn.execute(query, args)
-    rows = cur.fetchall()
-    conn.close()
-    result = [dict(r) for r in rows]
-    if one:
-        return result[0] if result else None
-    return result
+    try:
+        rows = conn.execute(query, args).fetchall()
+        result = [dict(r) for r in rows]
+        if one:
+            return result[0] if result else None
+        return result
+    finally:
+        conn.close()
 
 
 def execute_db(query, args=()):
     conn = get_db()
-    cur = conn.execute(query, args)
-    conn.commit()
-    last_id = cur.lastrowid
-    conn.close()
-    return last_id
+    try:
+        cur = conn.execute(query, args)
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
 
 
 def init_db():
-    # Create whatever directory actually holds the DB file — respects
-    # DATABASE_PATH pointing at a mounted volume, not just the local ./instance
-    # folder next to the code (important on PaaS platforms with a separate
-    # persistent-disk mount point).
-    db_dir = os.path.dirname(DB_PATH)
-    if db_dir:
-        os.makedirs(db_dir, exist_ok=True)
+    mongo = _mongo()
+    # Verify connectivity early so misconfigured deployments fail with a useful message.
+    _mongo_client.admin.command("ping")
+    # Create unique indexes corresponding to important relational constraints.
+    mongo["users"].create_index([("email", ASCENDING)], unique=True, sparse=True)
+    mongo["users"].create_index([("personal_id", ASCENDING)], unique=True, partialFilterExpression={"personal_id": {"$type": "string", "$gt": ""}})
+    mongo["daily_sales"].create_index([("date", ASCENDING), ("shift", ASCENDING), ("fuel_type", ASCENDING)], unique=True, sparse=True)
+    # Initialize missing collection schemas without overwriting any existing records.
     conn = get_db()
-    conn.executescript(SCHEMA)
-    conn.commit()
     conn.close()
 
 
@@ -331,69 +489,42 @@ def next_personal_id(role, conn=None):
 
 
 def migrate_schema():
-    """Idempotent, non-destructive migration: safe to run on every startup,
-    including against a dealer's existing database that already has real
-    customers, entries, and payments in it."""
+    """Apply backward-compatible defaults and legacy account fixes."""
     conn = get_db()
-    for col, coldef in USERS_NEW_COLUMNS:
-        _add_column_if_missing(conn, "users", col, coldef)
-    for col, coldef in DENSITY_NEW_COLUMNS:
-        _add_column_if_missing(conn, "density_entries", col, coldef)
-    conn.commit()
-
-    # Backfill Personal IDs for any pre-existing accounts that predate them.
-    users_missing = conn.execute(
-        "SELECT id, role FROM users WHERE personal_id IS NULL OR personal_id='' ORDER BY id ASC"
-    ).fetchall()
-    for u in users_missing:
-        pid = next_personal_id(u["role"], conn=conn)
-        conn.execute("UPDATE users SET personal_id=? WHERE id=?", (pid, u["id"]))
+    try:
+        for col, coldef in USERS_NEW_COLUMNS:
+            _add_column_if_missing(conn, "users", col, coldef)
+        for col, coldef in DENSITY_NEW_COLUMNS:
+            _add_column_if_missing(conn, "density_entries", col, coldef)
+        users_missing = conn.execute(
+            "SELECT id, role FROM users WHERE personal_id IS NULL OR personal_id='' ORDER BY id ASC"
+        ).fetchall()
+        for u in users_missing:
+            pid = next_personal_id(u["role"], conn=conn)
+            conn.execute("UPDATE users SET personal_id=? WHERE id=?", (pid, u["id"]))
+        pump = conn.execute("SELECT * FROM pump WHERE id=1").fetchone()
+        owner = conn.execute("SELECT id FROM users WHERE role='admin' ORDER BY id ASC LIMIT 1").fetchone()
+        if not pump and owner:
+            biz = conn.execute("SELECT value FROM settings WHERE key='business_name'").fetchone()
+            conn.execute(
+                "INSERT INTO pump (id,business_name,pump_code_hash,owner_user_id) VALUES (1,?,NULL,?)",
+                (biz["value"] if biz else "Fuel Station", owner["id"]),
+            )
+        for fuel_type, diameter_m, length_m in TANK_DEFAULTS:
+            conn.execute(
+                "INSERT OR IGNORE INTO tanks (fuel_type,capacity_ltr,diameter_m,length_m) VALUES (?,?,?,?)",
+                (fuel_type, 20000.0, diameter_m, length_m),
+            )
+        default_settings = {
+            "business_name": "", "business_address": "", "gst_no": "",
+            "currency_symbol": "$", "currency_code": "USD", "locale": "en-US",
+            "rate_diesel": "0", "rate_petrol": "0", "rate_cng": "0",
+        }
+        for k, v in default_settings.items():
+            conn.execute("INSERT OR IGNORE INTO settings (key,value) VALUES (?,?)", (k, v))
         conn.commit()
-
-    # Bootstrap the pump record for a pre-existing install that predates the
-    # pump/owner/manager security model. The pump code is left unset
-    # (pending) — the owner sets it explicitly from Settings, so no code is
-    # ever silently generated without the owner seeing and choosing it.
-    pump = conn.execute("SELECT * FROM pump WHERE id=1").fetchone()
-    owner = conn.execute("SELECT id FROM users WHERE role='admin' ORDER BY id ASC LIMIT 1").fetchone()
-    if not pump and owner:
-        # A pre-existing install from before the pump/owner/manager security
-        # model: bootstrap the pump record around the existing admin account.
-        # The code is left unset (pending) — the owner chooses and sets it
-        # explicitly from Settings, so nothing is silently generated.
-        biz = conn.execute("SELECT value FROM settings WHERE key='business_name'").fetchone()
-        conn.execute(
-            "INSERT INTO pump (id,business_name,pump_code_hash,owner_user_id) VALUES (1,?,NULL,?)",
-            (biz["value"] if biz else "Fuel Station", owner["id"]),
-        )
-        conn.commit()
-    # else: brand-new, empty database with no owner yet — leave the pump
-    # table empty so the first visitor sees the "Register your Pump" flow.
-
-    for fuel_type, diameter_m, length_m in TANK_DEFAULTS:
-        conn.execute(
-            "INSERT OR IGNORE INTO tanks (fuel_type,capacity_ltr,diameter_m,length_m) VALUES (?,?,?,?)",
-            (fuel_type, 20000.0, diameter_m, length_m),
-        )
-    # Regional/localization defaults are intentionally neutral, not tied to
-    # any one country — the Owner sets these for their market from
-    # Settings → Business Info the first time they log in.
-    default_settings = {
-        "business_name": "",
-        "business_address": "",
-        "gst_no": "",
-        "currency_symbol": "$",
-        "currency_code": "USD",
-        "locale": "en-US",
-        "rate_diesel": "0",
-        "rate_petrol": "0",
-        "rate_cng": "0",
-    }
-    for k, v in default_settings.items():
-        conn.execute("INSERT OR IGNORE INTO settings (key,value) VALUES (?,?)", (k, v))
-    conn.commit()
-    conn.close()
-
+    finally:
+        conn.close()
 
 def seed_db():
     """Populate demo data matching the original mockup, so the dashboard

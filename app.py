@@ -13,6 +13,9 @@ import math
 import secrets
 from datetime import datetime, timedelta
 from functools import wraps
+from dotenv import load_dotenv
+
+load_dotenv()
 
 try:
     # Optional convenience for local/dev runs: load variables from a .env
@@ -226,7 +229,7 @@ def gen_temp_password():
 # ---------------------------------------------------------------------------
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("login.html")
 
 
 @app.route("/healthz")

@@ -15,26 +15,60 @@
 
   <!-- LOGIN / REGISTRATION SCREEN -->
   <div id="login" class="screen active">
+    <section class="login-hero" aria-label="FuelTrack introduction">
+      <div class="hero-brand">
+        <span class="hero-brand-icon"><i class="ti ti-gas-station" aria-hidden="true"></i></span>
+        <div>
+          <div class="hero-brand-name">Fuel<span>Track</span></div>
+          <div class="hero-brand-subtitle">Smart Fuel Management</div>
+        </div>
+      </div>
+
+      <div class="hero-copy">
+        <p class="hero-eyebrow">SMARTER STATIONS. BETTER CONTROL.</p>
+        <h1>Powering<br>a <span>Smarter</span> Tomorrow</h1>
+        <p class="hero-tagline">Manage <b>·</b> Monitor <b>·</b> Grow</p>
+      </div>
+
+      <div class="hero-features">
+        <div class="hero-feature">
+          <span class="feature-icon"><i class="ti ti-droplet-filled" aria-hidden="true"></i></span>
+          <span>Fuel<br>Management</span>
+        </div>
+        <span class="feature-divider"></span>
+        <div class="hero-feature">
+          <span class="feature-icon"><i class="ti ti-chart-bar" aria-hidden="true"></i></span>
+          <span>Real-time<br>Reports</span>
+        </div>
+        <span class="feature-divider"></span>
+        <div class="hero-feature">
+          <span class="feature-icon"><i class="ti ti-shield-check-filled" aria-hidden="true"></i></span>
+          <span>Secure<br>Access</span>
+        </div>
+      </div>
+    </section>
+
+    <div class="auth-panel-wrap">
     <div class="login-box" id="login-box-login">
       <div class="login-logo">
-        <div class="logo-icon">FSM</div>
+        <div class="logo-icon"><i class="ti ti-gas-station" aria-hidden="true"></i></div>
         <div>
-          <div class="login-title">Dealer Data Manager</div>
+          <div class="login-title">Fuel<span class="brand-accent">Track</span></div>
           <div class="login-subtitle" id="pump-name-sub">Udhari &amp; Credit Management System</div>
         </div>
       </div>
-      <div class="login-heading">Sign in</div>
-      <div class="login-desc">Use your Email or Personal ID</div>
+      <div class="login-heading">Welcome Back</div>
+      <div class="login-desc">Login to access your account</div>
       <form id="login-form">
         <div class="field-wrap">
-          <label class="field-label">Email or Personal ID</label>
-          <input class="field-input" id="email" type="text" placeholder="you@example.com or OWN-0001" required>
+          <label class="field-label" for="email">Email or Personal ID</label>
+          <span class="input-icon"><i class="ti ti-user-circle" aria-hidden="true"></i></span><input class="field-input" id="email" type="text" autocomplete="username" placeholder="Email or Personal ID" required>
         </div>
         <div class="field-wrap">
-          <label class="field-label">Password</label>
-          <input class="field-input" id="pass" type="password" placeholder="Enter password" required>
+          <label class="field-label" for="pass">Password</label>
+          <span class="input-icon"><i class="ti ti-lock" aria-hidden="true"></i></span><input class="field-input" id="pass" type="password" autocomplete="current-password" placeholder="Enter password" required>
         </div>
-        <button class="login-btn" type="submit" id="login-btn">Sign in to Dashboard</button>
+        <button class="login-btn" type="submit" id="login-btn">Login <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
       </form>
       <div class="login-err" id="login-err"></div>
       <div class="auth-switch">
@@ -46,9 +80,9 @@
     <!-- Register Owner (shown only when this pump has never been registered) -->
     <div class="login-box" id="login-box-register-owner" style="display:none">
       <div class="login-logo">
-        <div class="logo-icon">FSM</div>
+        <div class="logo-icon"><i class="ti ti-gas-station" aria-hidden="true"></i></div>
         <div>
-          <div class="login-title">Dealer Data Manager</div>
+          <div class="login-title">Fuel<span class="brand-accent">Track</span></div>
           <div class="login-subtitle">First-time Pump Setup</div>
         </div>
       </div>
@@ -76,9 +110,9 @@
     <!-- Register Manager (uses existing pump code) -->
     <div class="login-box" id="login-box-register-manager" style="display:none">
       <div class="login-logo">
-        <div class="logo-icon">FSM</div>
+        <div class="logo-icon"><i class="ti ti-gas-station" aria-hidden="true"></i></div>
         <div>
-          <div class="login-title">Dealer Data Manager</div>
+          <div class="login-title">Fuel<span class="brand-accent">Track</span></div>
           <div class="login-subtitle" id="rm-pump-name">Manager Registration</div>
         </div>
       </div>
@@ -97,6 +131,7 @@
       </form>
       <div class="login-err" id="register-manager-err"></div>
       <div class="auth-switch"><a href="#" id="switch-to-login-from-rm">&larr; Back to Sign in</a></div>
+    </div>
     </div>
   </div>
 
